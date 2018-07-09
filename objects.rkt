@@ -13,12 +13,16 @@
 (require racket/class)
 (require "env.rkt")
 
-;; We want to support:
-;; - numbers
-;; - bools
-;; - strings
-;; - lists
-;; - lambdas
+;; For numbers and strings, the existing Racket datatypes are used, because
+;; this means a dedicated parsing function is not needed. Constant values
+;; (true, false, null) and variables are stored as Racket symbols
+;; for the same reason.
+
+;; So the only objects currently included are:
+;; - pairs% (which can be used to build lists)
+;; - function% (used for functions defined with the `lambda` form
+;; - built-in-function% which is used to create functions written
+;;   in Racket for the prelude.
 
 (define expression-interface<%>
   (interface () self-evaluating?))
@@ -47,29 +51,6 @@
 
 (define (pair-second x)
   (send x get-second))
-
-;; Variables
-
-(define variable%
-  (class object%
-    (init symbol)
-    (define var-symbol symbol)
-    (define/public (self-evaluating?) #f)
-    (define/public (eval-in-env env)
-      (lookup-in-env var-symbol))))
-
-;; variables-tests
-
-(let ([env (empty-env)])
-  (begin
-    (bind-var-in-env! 'x 10 env)
-    (check-eq? (lookup-in-env 'x env) 10)))
-
-(let* ([env (empty-env)])
-  (begin
-    (bind-var-in-env! 'x 10 env)
-    (bind-var-in-env! 'x 12 env)
-    (check-eq? (lookup-in-env 'x env) 12)))
 
 ;; Lambdas/functions consist of:
 
