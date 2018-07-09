@@ -21,7 +21,6 @@
   (or (constant? exp)
       (number? exp)
       (string? exp)
-      ;(boolean? exp)
       (is-a? exp pair%)))
 
 (define (eval-self-evaluating exp env)
@@ -30,7 +29,7 @@
 ;; if
 
 (define (exp-if? exp)
-  (equal? 'if-else (first exp)))
+  (equal? 'if (first exp)))
 
 (define (eval-if exp env)
   (if (equal? (eval-in-env (second exp) env) 'true)
@@ -72,12 +71,12 @@
          null
          (rest exp)))
 
-;; with/let
+;; let
 
-(define (exp-with? exp)
-  (equal? 'with (first exp)))
+(define (exp-let? exp)
+  (equal? 'let (first exp)))
 
-(define (eval-with exp env)
+(define (eval-let exp env)
   (let [(new-env (add-in-new-frame-to-env (first (second exp))
                                           (eval-in-env (second (second exp)) env)
                                           env))]
@@ -119,8 +118,8 @@
      (eval-set! exp env)]
     [(exp-begin? exp)
      (eval-begin exp env)]
-    [(exp-with? exp)
-     (eval-with exp env)]
+    [(exp-let? exp)
+     (eval-let exp env)]
     [(exp-lambda? exp)
      (eval-lambda exp env)]
     ;; Any other list is assumed to be function application
@@ -152,8 +151,8 @@
 
 ;; Test if
 
-(check-eq? 1 (eval '(if-else true 1 9)))
-(check-eq? 9 (eval '(if-else false 1 9)))
+(check-eq? 1 (eval '(if true 1 9)))
+(check-eq? 9 (eval '(if false 1 9)))
 
 ;; Test prelude functions
 
@@ -164,13 +163,13 @@
 
 (check-eq? 13 (eval ((lambda (x) (+ x 10)) 3)))
 
-(check-eq? 10 (eval '(if-else ((lambda (x) true) "this is ignored") 10 0)))
+(check-eq? 10 (eval '(if ((lambda (x) true) "this is ignored") 10 0)))
 
-;; Test with
+;; Test let
 
-(check-eq? 22 (eval '(with (a 10) (+ a 12))))
+(check-eq? 22 (eval '(let (a 10) (+ a 12))))
 
-(check-eq? 14 (eval '(with (a (+ 1 3)) (+ a 10))))
+(check-eq? 14 (eval '(let (a (+ 1 3)) (+ a 10))))
 
 ;; Test begin
 
@@ -182,22 +181,22 @@
                             (define change-a (lambda () (set! a 20)))
                             (change-a)
                             (define f (lambda (x) (+ x a)))
-                            (with (a 3) (f a)))))
+                            (let (a 3) (f a)))))
 
 ;; Composite test #2
 
 (check-eq? 14 (eval '(begin
                       (define fold
-                        (lambda (f acc lst) (if-else (null? lst)
+                        (lambda (f acc lst) (if (null? lst)
                                                      acc
-                                                     (with (new-acc (f (first lst) acc))
+                                                     (let (new-acc (f (first lst) acc))
                                                            (fold f new-acc (second lst))))))
                       (define map
-                        (lambda (f lst) (if-else (null? lst)
+                        (lambda (f lst) (if (null? lst)
                                                  null
                                                  (pair (f (first lst)) (map f (second  lst))))))
-                      (with (numbers (pair 1 (pair 2 (pair 3 null))))
-                            (with (squares (map (lambda (x) (* x x)) numbers))
+                      (let (numbers (pair 1 (pair 2 (pair 3 null))))
+                            (let (squares (map (lambda (x) (* x x)) numbers))
                                   (fold + 0 squares))))))
 
                                   
