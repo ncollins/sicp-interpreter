@@ -60,12 +60,16 @@
 
 ;; variables-tests
 
-(let ([env (bind-var-in-env! 'x 10 empty-env)])
-  (check-eq? (lookup-in-env 'x env) 10))
+(let ([env (empty-env)])
+  (begin
+    (bind-var-in-env! 'x 10 env)
+    (check-eq? (lookup-in-env 'x env) 10)))
 
-(let* ([env (bind-var-in-env! 'x 10 empty-env)]
-       [env (bind-var-in-env! 'x 12 env)])
-  (check-eq? (lookup-in-env 'x env) 12))
+(let* ([env (empty-env)])
+  (begin
+    (bind-var-in-env! 'x 10 env)
+    (bind-var-in-env! 'x 12 env)
+    (check-eq? (lookup-in-env 'x env) 12)))
 
 ;; Lambdas/functions consist of:
 

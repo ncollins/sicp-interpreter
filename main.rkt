@@ -8,6 +8,7 @@
 
 (require "env.rkt")
 (require "objects.rkt")
+(require "prelude.rkt")
 
 ;; self evaluating
 
@@ -26,17 +27,15 @@
 (define (eval-self-evaluating exp env)
   exp)
 
-
-
 ;; if
 
 (define (exp-if? exp)
   (equal? 'if-else (first exp)))
 
 (define (eval-if exp env)
-  (if (equal? (eval (second exp) env) 'true)
-      (eval (third exp) env)
-      (eval (fourth exp) env)))
+  (if (equal? (eval-in-env (second exp) env) 'true)
+      (eval-in-env (third exp) env)
+      (eval-in-env (fourth exp) env)))
 
 ;; variable
 
@@ -52,7 +51,7 @@
   (equal? 'define (first exp)))
 
 (define (eval-define exp env)
-  (bind-var-in-env! (second exp) (eval (third exp) env) env))
+  (bind-var-in-env! (second exp) (eval-in-env (third exp) env) env))
 
 ;; set!
 
@@ -69,7 +68,7 @@
 
 (define (eval-begin exp env)
   (foldl (lambda (e return)
-           (eval e env))
+           (eval-in-env e env))
          null
          (rest exp)))
 
@@ -79,8 +78,10 @@
   (equal? 'with (first exp)))
 
 (define (eval-with exp env)
-  (let [(new-env (add-in-new-frame-to-env (first (second exp)) (second (second exp)) env))]
-    (eval (third exp) new-env)))
+  (let [(new-env (add-in-new-frame-to-env (first (second exp))
+                                          (eval-in-env (second (second exp)) env)
+                                          env))]
+    (eval-in-env (third exp) new-env)))
 
 ;; lambda
 
@@ -93,14 +94,14 @@
 ;; function application
 
 (define (eval-function-application exp env)
-  (let ([f (eval (first exp) env)]
-        [args (map (lambda (e) (eval e env)) (rest exp))])
-    (send f function-eval args eval)))
+  (let ([f (eval-in-env (first exp) env)]
+        [args (map (lambda (e) (eval-in-env e env)) (rest exp))])
+    (send f function-eval args eval-in-env)))
   
 
-;; eval
+;; evaluate expression in a given environment
 
-(define (eval exp env)
+(define (eval-in-env exp env)
   (cond
     ;; atoms
     [(exp-self-evaluating? exp)
@@ -127,75 +128,76 @@
      (eval-function-application exp env)]
     ))
 
+;; eval function wrapping the prelude
+
+(define (eval exp)
+  (eval-in-env exp (new-prelude-env)))
+
 ;; Test self-evaluating
 
-(check-eq? 1 (eval 1 empty-env))
-(check-eq? "hello world" (eval "hello world" empty-env))
-(check-eq? 'true (eval 'true empty-env))
-(check-eq? 'false (eval 'false empty-env))
-(check-eq? 'null (eval 'null empty-env))
+(check-eq? 1 (eval 1))
+(check-eq? "hello world" (eval "hello world"))
+(check-eq? 'true (eval 'true))
+(check-eq? 'false (eval 'false))
+(check-eq? 'null (eval 'null))
 
 (let [(test-pair (pair 1 2))]
-  (check-eq? test-pair (eval test-pair empty-env)))
-(check-eq? 1 (pair-first (eval (pair 1 2) empty-env)))
-(check-eq? 2 (pair-second (eval (pair 1 2) empty-env)))
+  (check-eq? test-pair (eval test-pair)))
+(check-eq? 1 (pair-first (eval (pair 1 2))))
+(check-eq? 2 (pair-second (eval (pair 1 2))))
 
 ;; Test failure of unsupported atoms
 
-(check-exn exn:fail? (lambda () (eval #t '())))
+(check-exn exn:fail? (lambda () (eval #t)))
 
 ;; Test if
 
-(check-eq? 1 (eval '(if-else true 1 9) empty-env))
-(check-eq? 9 (eval '(if-else false 1 9) empty-env))
+(check-eq? 1 (eval '(if-else true 1 9)))
+(check-eq? 9 (eval '(if-else false 1 9)))
 
-;; Eval function tests
+;; Test prelude functions
 
+(check-eq? 14 (eval '(+ 4 10)))
+(check-eq? 7 (eval '(first (pair (+ 2 5) 1))))
 
+;; Test lambda and function application
 
-(check-eq? 13 (eval ((lambda (x) (+ x 10)) 3) '()))
+(check-eq? 13 (eval ((lambda (x) (+ x 10)) 3)))
 
-(let* ([env empty-env]
-       [plus (new built-in-function% [racket-function +])]
-       [env (bind-var-in-env! 'plus plus env)])
-  (check-eq? 14 (eval (list 'plus 4 10) env)))
+(check-eq? 10 (eval '(if-else ((lambda (x) true) "this is ignored") 10 0)))
 
-(let* ([env empty-env]
-       [plus (new built-in-function% [racket-function +])]
-       [env (bind-var-in-env! 'plus plus env)]
-       [env (bind-var-in-env! 'x 99 env)])
-  (check-eq? 103 (eval (list 'plus 4 'x) env)))
+;; Test with
 
-(check-eq? 10 (eval '(if-else true 10 0) empty-env))
-(check-eq? 0 (eval '(if-else false 10 0) empty-env))
+(check-eq? 22 (eval '(with (a 10) (+ a 12))))
 
-(check-eq? 10 (eval '(if-else ((lambda (x) true) "this is ignored") 10 0) empty-env))
+(check-eq? 14 (eval '(with (a (+ 1 3)) (+ a 10))))
 
+;; Test begin
 
-(define base-env
-  (let* ([env empty-env]
-         [env (bind-var-in-env! 'null? (new built-in-function% [racket-function (lambda (x) (equal? x 'null))]) env)]
-         [env (bind-var-in-env! 'pair (new built-in-function% [racket-function pair]) env)]
-         [env (bind-var-in-env! 'first (new built-in-function% [racket-function pair-first]) env)]
-         [env (bind-var-in-env! 'second (new built-in-function% [racket-function pair-second]) env)]
-         [env (bind-var-in-env! '+ (new built-in-function% [racket-function +]) env)])
-    env))
+(check-eq? 17 (eval '(begin (define a 10) (+ a 7))))
 
-(check-eq? 34 (eval '(if-else true (+ 30 4) 0) base-env))
-
-(let [(env (bind-var-in-env! 'x 967 empty-env))]
-  (check-eq? 967 (eval 'x env)))
-
-(check-eq? 22 (eval '(with (a 10) (+ a 12)) base-env))
-
-(check-eq? 17 (eval '(begin (define a 10) (+ a 7)) base-env))
+;; Composite test #1
 
 (check-eq? 23 (eval '(begin (define a 10)
                             (define change-a (lambda () (set! a 20)))
                             (change-a)
                             (define f (lambda (x) (+ x a)))
-                            (with (a 3) (f a)))
-                    base-env))
+                            (with (a 3) (f a)))))
 
-(check-eq? 7 (eval '(first (pair (+ 2 5) 1)) base-env))
+;; Composite test #2
 
+(check-eq? 14 (eval '(begin
+                      (define fold
+                        (lambda (f acc lst) (if-else (null? lst)
+                                                     acc
+                                                     (with (new-acc (f (first lst) acc))
+                                                           (fold f new-acc (second lst))))))
+                      (define map
+                        (lambda (f lst) (if-else (null? lst)
+                                                 null
+                                                 (pair (f (first lst)) (map f (second  lst))))))
+                      (with (numbers (pair 1 (pair 2 (pair 3 null))))
+                            (with (squares (map (lambda (x) (* x x)) numbers))
+                                  (fold + 0 squares))))))
+
+                                  
