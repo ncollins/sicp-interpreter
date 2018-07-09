@@ -9,6 +9,13 @@
 
 (require racket/list)
 
+;; Hash tables are used to represent a "frame" which is a mutable collection
+;; of symbol-value bindings.
+;;
+;; An environent (or "env") is a list of frames, and we look up the value of
+;; a variable by finding the first frame where it is present and returning
+;; the associated value.
+
 (define (empty-env) (list (make-hash)))
 
 (define (var-in-env? var env)
