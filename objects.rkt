@@ -86,9 +86,9 @@
     (define/public (self-evaluating?) #f)
     (define/public (function-eval delayed-arguments eval-function)
       ;; TODO - will need a wrapper around apply to handle lazy evaluation
-      (let* ([actual-args (map
-                           (lambda (thunk) (actual-value eval-function
-                                                         (thunk-exp thunk)
-                                                         (thunk-env thunk)))
-                           delayed-arguments)])
-          (apply function actual-args)))))
+      (let ([actual-args (map
+                          (lambda (thunk) (actual-value eval-function
+                                                        (thunk-exp thunk)
+                                                        (thunk-env thunk)))
+                          delayed-arguments)])
+        (apply function actual-args)))))
