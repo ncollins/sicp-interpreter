@@ -78,8 +78,6 @@
       (define env (cons frame f-enclosing-env))
       (eval-function f-body env))))
 
-
-
 (define built-in-function%
   (class object%
     (init racket-function)

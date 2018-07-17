@@ -147,14 +147,10 @@
 (check-eq? 'false (eval 'false))
 (check-eq? 'null (eval 'null))
 
-
-
 (let [(test-pair (pair 1 2))]
   (check-eq? test-pair (eval test-pair)))
 (check-eq? 1 (pair-first (eval (pair 1 2))))
 (check-eq? 2 (pair-second (eval (pair 1 2))))
-
-
 
 ;; Test failure of unsupported atoms
 
@@ -182,22 +178,15 @@
 
 (check-eq? 14 (eval '(let (a (+ 1 3)) (+ a 10))))
 
-
-
 ;; Test begin
 
-
-
 (check-eq? 17 (eval '(begin (define a 10) (+ a 7))))
-
 
 ;; lazy tests
 
 (check-eq? 13 (eval '(begin (define a 10)
                             (define f (lambda (x) (+ x 10)))
                             (let (a 3) (f a)))))
-
-
 
 ;; Composite test #1
 
@@ -206,8 +195,6 @@
                             (change-a)
                             (define f (lambda (x) (+ x a)))
                             (let (a 3) (f a)))))
-
-
 
 ;; Composite test #2
 
@@ -225,7 +212,3 @@
                             (let (squares (map (lambda (x) (* x x)) numbers))
                                   ;; we need to add zero because the fold returns a thunk
                                   (+ 0 (fold + 0 squares)))))))
-
-
-
-                                  
