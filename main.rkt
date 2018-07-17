@@ -9,6 +9,7 @@
 (require "env.rkt")
 (require "objects.rkt")
 (require "prelude.rkt")
+(require "thunk.rkt")
 
 ;; self evaluating
 
@@ -93,31 +94,9 @@
 ;; function application
 
 (define (eval-function-application exp env)
-  (let ([f (actual-value (first exp) env)]
+  (let ([f (actual-value eval-in-env (first exp) env)]
         [args (map (lambda (e) (delay-it e env)) (rest exp))])
     (send f function-eval args eval-in-env)))
-
-(define (actual-value exp env)
-  (force-it (eval-in-env exp env)))
-
-(define (force-it obj)
-  (if (thunk? obj)
-      (actual-value (thunk-exp obj)
-                    (thunk-env obj))
-      obj))
-
-(define (delay-it exp env)
-  (list 'thunk exp env))
-
-(define (thunk? exp)
-  (and (list? exp)
-       (equal? 'thunk (first exp))))
-
-(define (thunk-exp thunk) (second thunk))
-(define (thunk-env thunk) (third thunk))
-
-
-  
 
 ;; evaluate expression in a given environment
 

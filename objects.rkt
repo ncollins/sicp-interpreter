@@ -13,6 +13,7 @@
 (require racket/list)
 (require racket/class)
 (require "env.rkt")
+(require "thunk.rkt")
 
 ;; For numbers and strings, the existing Racket datatypes are used, because
 ;; this means a dedicated parsing function is not needed. Constant values
@@ -78,40 +79,6 @@
       (eval-function f-body env))))
 
 
-;; TODO - refactor so this code is not duplicated
-;; (currently included to avoid circular dependencies)
-
-
-
-;;(define (actual-value exp env)
-;;  (force-it (eval exp env)))
-
-(define (actual-value eval-function exp env)
-  (force-it eval-function (eval-function exp env)))
-
-;;(define (force-it obj)
-;;  (if (thunk? obj)
-;;      (actual-value (thunk-exp obj) 
-;;                    (thunk-env obj))
-;;      obj))
-
-
-(define (force-it eval-function obj)
-  (if (thunk? obj)
-      (actual-value eval-function
-                    (thunk-exp obj)
-                    (thunk-env obj))
-      obj))
-
-(define (delay-it exp env)
-  (list 'thunk exp env))
-
-(define (thunk? exp)
-  (and (list? exp)
-       (equal? 'thunk (first exp))))
-
-(define (thunk-exp thunk) (second thunk))
-(define (thunk-env thunk) (third thunk))
 
 (define built-in-function%
   (class object%
