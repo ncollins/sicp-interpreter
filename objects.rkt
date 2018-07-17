@@ -10,6 +10,7 @@
 
 
 (require rackunit)
+(require racket/list)
 (require racket/class)
 (require "env.rkt")
 
@@ -69,12 +70,48 @@
     (define f-body body)
     (define f-enclosing-env enclosing-env)
     (define/public (self-evaluating?) #f)
-    (define/public (function-eval params eval-function)
+    (define/public (function-eval delayed-arguments eval-function)
       ;; create new frame
       ;; TODO - shouldn't be using make-hash here...
-      (define frame (make-hash (map cons f-args params)))
+      (define frame (make-hash (map cons f-args delayed-arguments)))
       (define env (cons frame f-enclosing-env))
       (eval-function f-body env))))
+
+
+;; TODO - refactor so this code is not duplicated
+;; (currently included to avoid circular dependencies)
+
+
+
+;;(define (actual-value exp env)
+;;  (force-it (eval exp env)))
+
+(define (actual-value eval-function exp env)
+  (force-it eval-function (eval-function exp env)))
+
+;;(define (force-it obj)
+;;  (if (thunk? obj)
+;;      (actual-value (thunk-exp obj) 
+;;                    (thunk-env obj))
+;;      obj))
+
+
+(define (force-it eval-function obj)
+  (if (thunk? obj)
+      (actual-value eval-function
+                    (thunk-exp obj)
+                    (thunk-env obj))
+      obj))
+
+(define (delay-it exp env)
+  (list 'thunk exp env))
+
+(define (thunk? exp)
+  (and (list? exp)
+       (equal? 'thunk (first exp))))
+
+(define (thunk-exp thunk) (second thunk))
+(define (thunk-env thunk) (third thunk))
 
 (define built-in-function%
   (class object%
@@ -82,5 +119,11 @@
     (super-new)
     (define function racket-function)
     (define/public (self-evaluating?) #f)
-    (define/public (function-eval params eval-function)
-      (apply function params))))
+    (define/public (function-eval delayed-arguments eval-function)
+      ;; TODO - will need a wrapper around apply to handle lazy evaluation
+      (let* ([actual-args (map
+                           (lambda (thunk) (actual-value eval-function
+                                                         (thunk-exp thunk)
+                                                         (thunk-env thunk)))
+                           delayed-arguments)])
+          (apply function actual-args)))))

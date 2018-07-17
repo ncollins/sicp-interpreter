@@ -93,9 +93,30 @@
 ;; function application
 
 (define (eval-function-application exp env)
-  (let ([f (eval-in-env (first exp) env)]
-        [args (map (lambda (e) (eval-in-env e env)) (rest exp))])
+  (let ([f (actual-value (first exp) env)]
+        [args (map (lambda (e) (delay-it e env)) (rest exp))])
     (send f function-eval args eval-in-env)))
+
+(define (actual-value exp env)
+  (force-it (eval-in-env exp env)))
+
+(define (force-it obj)
+  (if (thunk? obj)
+      (actual-value (thunk-exp obj)
+                    (thunk-env obj))
+      obj))
+
+(define (delay-it exp env)
+  (list 'thunk exp env))
+
+(define (thunk? exp)
+  (and (list? exp)
+       (equal? 'thunk (first exp))))
+
+(define (thunk-exp thunk) (second thunk))
+(define (thunk-env thunk) (third thunk))
+
+
   
 
 ;; evaluate expression in a given environment
@@ -132,6 +153,13 @@
 (define (eval exp)
   (eval-in-env exp (new-prelude-env)))
 
+(check-eq? 1 (eval 1))
+
+(let [(test-pair (pair 1 2))]
+  (check-eq? test-pair (eval test-pair)))
+
+(check-eq? 10 (eval '(+ 5 5)))
+
 ;; Test self-evaluating
 
 (check-eq? 1 (eval 1))
@@ -140,10 +168,14 @@
 (check-eq? 'false (eval 'false))
 (check-eq? 'null (eval 'null))
 
+
+
 (let [(test-pair (pair 1 2))]
   (check-eq? test-pair (eval test-pair)))
 (check-eq? 1 (pair-first (eval (pair 1 2))))
 (check-eq? 2 (pair-second (eval (pair 1 2))))
+
+
 
 ;; Test failure of unsupported atoms
 
@@ -171,9 +203,22 @@
 
 (check-eq? 14 (eval '(let (a (+ 1 3)) (+ a 10))))
 
+
+
 ;; Test begin
 
+
+
 (check-eq? 17 (eval '(begin (define a 10) (+ a 7))))
+
+
+;; lazy tests
+
+(check-eq? 13 (eval '(begin (define a 10)
+                            (define f (lambda (x) (+ x 10)))
+                            (let (a 3) (f a)))))
+
+
 
 ;; Composite test #1
 
@@ -182,6 +227,8 @@
                             (change-a)
                             (define f (lambda (x) (+ x a)))
                             (let (a 3) (f a)))))
+
+
 
 ;; Composite test #2
 
@@ -197,6 +244,9 @@
                                                  (pair (f (first lst)) (map f (second  lst))))))
                       (let (numbers (pair 1 (pair 2 (pair 3 null))))
                             (let (squares (map (lambda (x) (* x x)) numbers))
-                                  (fold + 0 squares))))))
+                                  ;; we need to add zero because the fold returns a thunk
+                                  (+ 0 (fold + 0 squares)))))))
+
+
 
                                   
