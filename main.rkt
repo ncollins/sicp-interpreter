@@ -163,6 +163,13 @@
 (check-eq? 1 (eval '(if true 1 9)))
 (check-eq? 9 (eval '(if false 1 9)))
 
+;; Test set!
+
+(check-eq? 9 (eval '(begin (define x 0)
+                           (set! x 4)
+                           (set! x (+ x 5))
+                           x)))
+
 ;; Test prelude functions
 
 (check-eq? 14 (eval '(+ 4 10)))
