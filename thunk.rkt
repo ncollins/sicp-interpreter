@@ -13,18 +13,31 @@
   (force-it eval-in-env (eval-in-env exp env)))
 
 (define (force-it eval-in-env obj)
-  (if (thunk? obj)
-      (actual-value eval-in-env
-                    (thunk-exp obj)
-                    (thunk-env obj))
-      obj))
+  (cond [(thunk? obj) (let ([computed
+                              (actual-value eval-in-env
+                                (thunk-exp obj)
+                                (thunk-env obj))])
+                          (begin 
+                            (set-mcar! obj 'computed-thunk)
+                            (set-mcdr! obj computed)
+                            computed))]
+        [(computed-thunk? obj)
+         (computed-thunk-value obj)]
+      [else obj]))
 
 (define (delay-it exp env)
-  (list 'thunk exp env))
+  (mcons 'thunk (mcons exp env)))
 
 (define (thunk? exp)
-  (and (list? exp)
-       (equal? 'thunk (first exp))))
+  (and (mpair? exp)
+       (equal? 'thunk (mcar exp))))
 
-(define (thunk-exp thunk) (second thunk))
-(define (thunk-env thunk) (third thunk))
+(define (computed-thunk? exp)
+  (and (mpair? exp)
+       (equal? 'computed-thunk (mcar exp))))
+
+(define (computed-thunk-value obj)
+  (mcdr obj))
+
+(define (thunk-exp thunk) (mcar (mcdr thunk)))
+(define (thunk-env thunk) (mcdr (mcdr thunk)))

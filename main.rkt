@@ -11,6 +11,8 @@
 (require "prelude.rkt")
 (require "thunk.rkt")
 
+(provide (all-defined-out))
+
 ;; self evaluating
 
 (define (constant? exp)
@@ -59,7 +61,7 @@
   (equal? 'set! (first exp)))
 
 (define (eval-set! exp env)
-  (set-var-in-env! (second exp) (third exp) env))
+  (set-var-in-env! (second exp) (eval-in-env (third exp) env) env))
 
 ;; begin
 
@@ -197,18 +199,24 @@
                             (let (a 3) (f a)))))
 
 ;; Composite test #2
+;; (we need to add zero because the fold returns a thunk)
 
 (check-eq? 14 (eval '(begin
                       (define fold
                         (lambda (f acc lst) (if (null? lst)
-                                                     acc
-                                                     (let (new-acc (f (first lst) acc))
-                                                           (fold f new-acc (second lst))))))
+                                               acc
+                                               (let (new-acc (f (first lst) acc))
+                                                   (fold f new-acc (second lst))))))
                       (define map
                         (lambda (f lst) (if (null? lst)
-                                                 null
-                                                 (pair (f (first lst)) (map f (second  lst))))))
+                                           null
+                                           (pair (f (first lst)) (map f (second  lst))))))
                       (let (numbers (pair 1 (pair 2 (pair 3 null))))
-                            (let (squares (map (lambda (x) (* x x)) numbers))
-                                  ;; we need to add zero because the fold returns a thunk
-                                  (+ 0 (fold + 0 squares)))))))
+                          (let (squares (map (lambda (x) (* x x)) numbers))
+                              (+ 0 (fold + 0 squares)))))))
+
+(check-eq? 1 (eval '(begin
+                      (define x 0)
+                      (define double (lambda (n) (+ n n)))
+                      (define m (double (begin (set! x (+ x 1)) 10)))
+                      x)))
